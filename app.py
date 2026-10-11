@@ -1102,8 +1102,9 @@ else:
 
 if __name__ == "__main__":
     debug = os.getenv("FLASK_DEBUG", "0") == "1"
-    host = os.getenv("PHISHGUARD_HOST", "127.0.0.1")
-    port = int(os.getenv("PHISHGUARD_PORT", "5000"))
+    port = int(os.getenv("PORT", os.getenv("PHISHGUARD_PORT", "5000")))
+    default_host = "0.0.0.0" if os.getenv("PORT") else "127.0.0.1"
+    host = os.getenv("PHISHGUARD_HOST", default_host)
 
     # SEC-09 / PERF-01: Use waitress production server when available
     if not debug:
