@@ -60,7 +60,7 @@ def test_get_email_returns_payload(tmp_path, monkeypatch):
 
 
 def test_get_email_returns_503_when_ai_fails(tmp_path, monkeypatch):
-    """If all AI attempts fail, /get-email must return 503 — no silent dataset fallback."""
+    """If all AI attempts fail, /get-email must return 503 - no silent dataset fallback."""
     client, _ = build_client(tmp_path, monkeypatch)
     with patch("app.generate_ai_email", return_value=(None, "AI unavailable")):
         response = client.get("/get-email", headers={

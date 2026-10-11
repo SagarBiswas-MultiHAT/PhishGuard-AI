@@ -1,7 +1,7 @@
 """Unit tests for the consensus engine and supporting functions.
 
 TEST-02: Covers the generator waterfall, verifier classification,
-consensus loop, fallback path, and edge cases — all with mocked API
+consensus loop, fallback path, and edge cases - all with mocked API
 responses so no live keys are needed.
 """
 
@@ -29,7 +29,8 @@ def _reload_app(monkeypatch):
     with patch("threading.Thread"):
         import app as app_module
 
-    # Reset global prefetch state for a clean slate.
+    # Reset global prefetch and cooldown state for a clean slate.
+    app_module._openrouter_rate_limit_until = 0.0
     with app_module._prefetch_lock:
         app_module._prefetch_cache = None
         app_module._prefetch_busy = False
@@ -271,7 +272,7 @@ def test_consensus_disagreement_retries(monkeypatch):
         _fake_choice("phishing 4"),     # Agree
     ]
 
-    # Patch _trigger_prefetch to no-op — the background thread would race with
+    # Patch _trigger_prefetch to no-op - the background thread would race with
     # the test and consume mock responses from the side_effect list.
     with patch.object(app_mod, "_make_or_client", return_value=mock_or_client), \
          patch.object(app_mod, "Groq", return_value=mock_groq_client), \
@@ -387,3 +388,78 @@ def test_csrf_rejects_cross_origin(monkeypatch):
     result = app_mod._check_csrf(mock_req)
     assert result is not None
     assert "Origin" in result
+
+
+def test_csrf_rejects_subdomain_prefix_hijack(monkeypatch):
+    """Origin sharing prefix with host must be rejected."""
+    app_mod = _reload_app(monkeypatch)
+
+    mock_req = MagicMock()
+    mock_req.headers = {
+        "X-Requested-With": "XMLHttpRequest",
+        "Origin": "http://localhost:5000.evil.com",
+    }
+    mock_req.host_url = "http://localhost:5000/"
+
+    result = app_mod._check_csrf(mock_req)
+    assert result is not None
+    assert "Origin" in result
+
+
+def test_csrf_accepts_reverse_proxy_https(monkeypatch):
+    """Reverse-proxied HTTPS requests with X-Forwarded-Proto should pass."""
+    app_mod = _reload_app(monkeypatch)
+
+    mock_req = MagicMock()
+    mock_req.headers = {
+        "X-Requested-With": "XMLHttpRequest",
+        "Origin": "https://phishguard.multihat.dev",
+        "X-Forwarded-Proto": "https",
+    }
+    mock_req.host_url = "http://phishguard.multihat.dev/"
+
+    result = app_mod._check_csrf(mock_req)
+    assert result is None
+
+
+def test_openrouter_circuit_breaker_activates_on_free_tier_limit(monkeypatch):
+    """Account-level free tier limit should activate circuit breaker cooldown."""
+    app_mod = _reload_app(monkeypatch)
+
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.side_effect = Exception(
+        "Rate limit exceeded: free-models-per-min."
+    )
+
+    email, error = app_mod._openrouter_generate(mock_client, "phishing", 800)
+    assert email is None
+    assert error is not None
+    assert app_mod._is_openrouter_cooling_down()
+
+    # While cooling down, subsequent call should immediately return without API calls
+    mock_client.chat.completions.create.reset_mock()
+    email2, error2 = app_mod._openrouter_generate(mock_client, "phishing", 800)
+    assert email2 is None
+    assert "cooling down" in str(error2).lower()
+    assert mock_client.chat.completions.create.call_count == 0
+
+
+def test_groq_classify_prioritizes_non_generator_model(monkeypatch):
+    """When a generator model is excluded, Groq verifier tries other models first."""
+    app_mod = _reload_app(monkeypatch)
+
+    mock_client = MagicMock()
+    # First model (non-excluded) succeeds
+    mock_client.chat.completions.create.return_value = _fake_choice("phishing 5")
+
+    label, score = app_mod._groq_classify(
+        mock_client, "Test text", exclude_model="qwen/qwen3.8-27b"
+    )
+    assert label == "phishing"
+    assert score == 5
+
+    # Check that model passed in create was not the excluded generator
+    first_call_model = mock_client.chat.completions.create.call_args[1]["model"]
+    assert first_call_model != "qwen/qwen3.8-27b"
+
+

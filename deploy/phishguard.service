@@ -8,7 +8,7 @@ Group=www-data
 WorkingDirectory=/var/www/phishguard
 Environment="PATH=/var/www/phishguard/.venv/bin"
 EnvironmentFile=/var/www/phishguard/.env
-ExecStart=/var/www/phishguard/.venv/bin/waitress-serve --port=5000 app:app
+ExecStart=/var/www/phishguard/.venv/bin/waitress-serve --listen=127.0.0.1:5000 app:app
 Restart=always
 
 [Install]

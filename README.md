@@ -58,12 +58,12 @@ Phishing is a type of online scam where criminals send fake emails to trick you 
 
 ## ⚙️ How to Run PhishGuard on Your Computer
 
-Getting PhishGuard running locally is simple. You need Python and a single, **completely free** API key from OpenRouter.
+Getting PhishGuard running locally is simple. You need Python and free API keys from OpenRouter and Groq (no credit cards required).
 
 ### 1. What You Need
 * **Python 3.11+**: Download from [python.org](https://www.python.org/downloads/).
-* **A Free OpenRouter Key**: Used to generate emails via a 120B parameter AI. Get yours at [openrouter.ai/keys](https://openrouter.ai/keys) — no credit card required.
-* **A Free Groq Key**: Used to instantly verify emails. Get yours at [console.groq.com/keys](https://console.groq.com/keys) — no credit card required.
+* **A Free OpenRouter Key**: Used to generate realistic scenarios across open-weight models. Get yours at [openrouter.ai/keys](https://openrouter.ai/keys) - no credit card required.
+* **A Free Groq Key**: Used for ultra-fast inference and dual-AI verification. Get yours at [console.groq.com/keys](https://console.groq.com/keys) - no credit card required.
 
 ### 2. Simple Setup
 Open PowerShell in the project folder and run:
@@ -77,7 +77,6 @@ python -m venv .venv
 
 # 3. Install dependencies
 pip install -r requirements.txt
-pip install -r requirements-ai.txt
 ```
 
 ### 3. Start the Game!
@@ -105,21 +104,30 @@ $env:GROQ_API_KEY = "gsk_your-key-here"
 
 Then open your browser and go to: **http://127.0.0.1:5000**
 
+### 4. Running Tests
+
+PhishGuard includes a complete unit and integration test suite:
+
+```powershell
+pytest -q
+# 57 passed
+```
+
 ---
 
 ## 🧠 Behind the Scenes: The Consensus Engine
 
-For the curious minds, here is how PhishGuard ensures the emails are always high quality and correctly labeled:
+For the curious minds, here is how PhishGuard ensures emails are always creative, authentic, and correctly labeled:
 
-Instead of relying on a single AI, PhishGuard uses a **hybrid Consensus Engine**:
+Instead of relying on a single AI, PhishGuard uses a **resilient hybrid Consensus Engine**:
 
-1. **The Writer** — High-capacity free models (e.g. `nvidia/nemotron-3-super-120b`, `google/gemma-4-26b`) via OpenRouter are asked to write either a safe email or a phishing scam.
-2. **The Reviewer** — `llama-3.3-70b-versatile` via Groq is then shown the same email — without knowing the intended label — and classifies it independently.
-3. If both AI models agree on the label, the email is served to you with a **✅ Dual-AI Verified** badge.
-4. If they disagree, the system silently discards it and generates a fresh one (up to 5 rounds).
-5. If consensus still fails, a fast fallback model generates directly so the game is never interrupted.
-
-The generator uses OpenRouter's massive free model library, while the verifier uses Groq's dedicated GPU hardware for instant, rate-limit-free classification.
+1. **Dynamic Threat Taxonomy** - Every round draws from an extensive catalog of 30+ workplace and consumer scenarios (CEO fraud, OAuth consent phishing, MFA fatigue, fake SaaS renewals, vendor invoice fraud, and legitimate internal memos).
+2. **The Writer** - High-capacity models (e.g. `google/gemma-4-26b`, `nvidia/nemotron-3-super-120b`, `qwen/qwen3.8-27b`) generate realistic email drafts with realistic headers and details.
+3. **The Reviewer** - A completely independent model via Groq (e.g. `openai/gpt-oss-120b`, `openai/gpt-oss-20b`) evaluates the draft without knowing the intended label, scoring quality from 1 to 5.
+4. **Consensus & Quality Gate** - If both models agree on the classification and the quality score meets or exceeds 3, the scenario is accepted with a **Dual-AI Verified** badge.
+5. **Disagreement & Quality Filtering** - Ambiguous emails or low-quality drafts (scores 1 or 2) are automatically discarded and regenerated.
+6. **Circuit Breaker & Groq Generator Fallback** - If OpenRouter free tier hits its 20 req/min rate limit, an automated 60-second circuit breaker seamlessly routes generation through Groq, guaranteeing uninterrupted gameplay.
+7. **Zero-Latency Prefetching** - While you analyze the current question, an asynchronous background worker prepares the next scenario in cache for instantaneous loading.
 
 ---
 

@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════
-   PhishGuard — Neural Threat Console
-   Script v2.1 — Particle system + Timer ring + Game logic
+   PhishGuard - Neural Threat Console
+   Script v2.1 - Particle system + Timer ring + Game logic
    ═══════════════════════════════════════════════ */
 
 // ─── Game State ─────────────────────────────────
@@ -296,12 +296,12 @@ function handleTimeout() {
   state.consecutiveTimeouts += 1;
 
   if (state.consecutiveTimeouts >= 3) {
-    // Auto-pause: user has missed 3 in a row — give them a break
+    // Auto-pause: user has missed 3 in a row - give them a break
     state.autoPaused = true;
     elements.pauseButton.textContent = 'Resume Game';
     setTimeout(() => {
       setStatus(
-        `You've timed out ${state.consecutiveTimeouts} times in a row. Take a breather — press "Resume Game" when ready.`,
+        `You've timed out ${state.consecutiveTimeouts} times in a row. Take a breather - press "Resume Game" when ready.`,
         'warning'
       );
     }, 1800);
@@ -341,7 +341,7 @@ function showVerifiedBadge(consensusRound, qualityScore) {
     badge.classList.add('quality-creative');
   }
 
-  badge.setAttribute('aria-label', `${qualityLabel} — verified in ${consensusRound} round${consensusRound !== 1 ? 's' : ''}`);
+  badge.setAttribute('aria-label', `${qualityLabel} - verified in ${consensusRound} round${consensusRound !== 1 ? 's' : ''}`);
   badge.innerHTML =
     `<span class="consensus-badge__icon" aria-hidden="true">${qualityIcon}</span>` +
     `<span class="consensus-badge__text">${qualityLabel}</span>` +
@@ -417,7 +417,7 @@ function handleAnswer(choice) {
   state.answered = true;
   clearInterval(state.timerId);
   state.paused = false;
-  state.consecutiveTimeouts = 0;  // user engaged — reset the streak
+  state.consecutiveTimeouts = 0;  // user engaged - reset the streak
   elements.pauseButton.textContent = 'Pause Timer';
   const isCorrect = choice === state.currentEmail.label;
   state.attempts += 1;

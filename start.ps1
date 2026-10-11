@@ -9,7 +9,7 @@ if (Test-Path "$PSScriptRoot\.env") {
         if ($line -and -not $line.StartsWith("#") -and $line -match '^([^=]+)=(.*)$') {
             $key = $matches[1].Trim()
             $val = $matches[2].Trim().Trim('"').Trim("'")
-            if (-not [System.Environment]::GetEnvironmentVariable($key, "Process")) {
+            if ($val) {
                 [System.Environment]::SetEnvironmentVariable($key, $val, "Process")
             }
         }
@@ -17,7 +17,6 @@ if (Test-Path "$PSScriptRoot\.env") {
 }
 
 # ── Required: OpenRouter & Groq API Keys ─────────────────────────────────────────────
-# Keys set in the terminal or .env BEFORE running this script take priority.
 if (-not $env:OPENROUTER_API_KEY) { $env:OPENROUTER_API_KEY = "your_openrouter_key_here" }
 if (-not $env:GROQ_API_KEY) { $env:GROQ_API_KEY = "your_groq_key_here" }
 

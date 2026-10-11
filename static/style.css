@@ -1,7 +1,7 @@
 /* PERF-04: Google Fonts loaded via <link> tags in index.html for non-blocking rendering */
 
 /* ───────────────────────────────────────────────
-   Design Tokens — 2050 Neural Threat Console
+   Design Tokens - 2050 Neural Threat Console
    ─────────────────────────────────────────────── */
 
 @property --border-angle {
@@ -86,14 +86,14 @@
   --void-lighter: #e8ebf2;
   --void-card: #ffffff;
 
-  /* Surfaces — frosted white glass */
+  /* Surfaces - frosted white glass */
   --surface: rgba(255, 255, 255, 0.72);
   --surface-solid: #ffffff;
   --surface-hover: rgba(255, 255, 255, 0.9);
   --glass-border: rgba(0, 0, 0, 0.08);
   --glass-border-hover: rgba(0, 0, 0, 0.14);
 
-  /* Neon — deeper/saturated for contrast on white */
+  /* Neon - deeper/saturated for contrast on white */
   --neon-cyan: #0099aa;
   --neon-cyan-dim: rgba(0, 153, 170, 0.1);
   --neon-cyan-glow: rgba(0, 153, 170, 0.25);
@@ -113,12 +113,12 @@
   --text-muted: #5c6578;
   --text-dim: #9ca3b4;
 
-  /* Shadows — softer */
+  /* Shadows - softer */
   --shadow-elevated: 0 24px 60px rgba(0, 0, 0, 0.1), 0 0 1px rgba(0, 0, 0, 0.05);
   --shadow-neon-cyan: 0 0 16px rgba(0, 153, 170, 0.2), 0 0 40px rgba(0, 153, 170, 0.06);
   --shadow-neon-magenta: 0 0 16px rgba(214, 36, 143, 0.2), 0 0 40px rgba(214, 36, 143, 0.06);
 
-  /* Grid — subtle warm */
+  /* Grid - subtle warm */
   --grid-color: rgba(0, 0, 0, 0.03);
 
   /* Component fills */
@@ -211,7 +211,7 @@ body::after {
 }
 
 /* ───────────────────────────────────────────────
-   Shell — Main Layout
+   Shell - Main Layout
    ─────────────────────────────────────────────── */
 
 .shell {
@@ -293,7 +293,7 @@ body::after {
 }
 
 /* ───────────────────────────────────────────────
-   Board — Main Card (Holographic Border)
+   Board - Main Card (Holographic Border)
    ─────────────────────────────────────────────── */
 
 .board-wrapper {
@@ -338,7 +338,7 @@ body::after {
 }
 
 /* ───────────────────────────────────────────────
-   Stats — HUD Readouts
+   Stats - HUD Readouts
    ─────────────────────────────────────────────── */
 
 .stats {
@@ -528,7 +528,7 @@ body::after {
   transition: opacity 0.3s ease;
 }
 
-/* Phishing — Magenta neon */
+/* Phishing - Magenta neon */
 .button.primary {
   background: linear-gradient(135deg, rgba(255, 45, 170, 0.2), rgba(255, 45, 170, 0.1));
   color: var(--neon-magenta);
@@ -547,7 +547,7 @@ body::after {
   transform: translateY(0px);
 }
 
-/* Legitimate — Cyan neon */
+/* Legitimate - Cyan neon */
 .button.secondary {
   background: linear-gradient(135deg, rgba(0, 240, 255, 0.15), rgba(0, 240, 255, 0.05));
   color: var(--neon-cyan);
@@ -566,7 +566,7 @@ body::after {
   transform: translateY(0px);
 }
 
-/* Ghost — Pause / Send */
+/* Ghost - Pause / Send */
 .button.ghost {
   background: transparent;
   border: 1px dashed var(--ghost-border);
@@ -944,18 +944,18 @@ body::after {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
-/* Light mode heading — use deeper gradient for readability */
+/* Light mode heading - use deeper gradient for readability */
 [data-theme="light"] .hero h1 {
   filter: drop-shadow(0 0 20px rgba(0, 153, 170, 0.2));
 }
 
-/* Light mode board wrapper glow — softer */
+/* Light mode board wrapper glow - softer */
 [data-theme="light"] .board-wrapper::before {
   opacity: 0.12;
 }
 
 /* ───────────────────────────────────────────────
-   Consensus Badge — Dual-AI Verified Indicator
+   Consensus Badge - Dual-AI Verified Indicator
    ─────────────────────────────────────────────── */
 
 @keyframes badgeSlideIn {
@@ -1039,7 +1039,7 @@ body::after {
   border-left-color: rgba(5, 150, 82, 0.2);
 }
 
-/* ── Quality Tier: Elite (Score 5) — Gold ────── */
+/* ── Quality Tier: Elite (Score 5) - Gold ────── */
 
 @keyframes eliteGlow {
   0%, 100% { box-shadow: 0 0 16px rgba(255, 200, 0, 0.25), inset 0 0 8px rgba(255, 200, 0, 0.05); }
@@ -1089,7 +1089,7 @@ body::after {
   border-left-color: rgba(160, 120, 0, 0.2);
 }
 
-/* ── Quality Tier: Creative (Score 4) — Cyan ─── */
+/* ── Quality Tier: Creative (Score 4) - Cyan ─── */
 
 @keyframes creativeGlow {
   0%, 100% { box-shadow: 0 0 14px rgba(0, 210, 255, 0.2), inset 0 0 6px rgba(0, 210, 255, 0.04); }
@@ -1140,7 +1140,7 @@ body::after {
 }
 
 /* ───────────────────────────────────────────────
-   Responsive — Mobile
+   Responsive - Mobile
    ─────────────────────────────────────────────── */
 
 @media (max-width: 720px) {

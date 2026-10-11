@@ -88,7 +88,7 @@ def test_pick_scenario_resets_when_all_used(monkeypatch):
     with app_mod._prefetch_lock:
         app_mod._recent_scenarios.extend(app_mod.PHISHING_SCENARIOS)
 
-    # Should not crash — picks from full pool when all are recent
+    # Should not crash - picks from full pool when all are recent
     result = app_mod._pick_scenario("phishing")
     assert result in app_mod.PHISHING_SCENARIOS
 
@@ -148,7 +148,7 @@ def test_record_served_text_bounded(monkeypatch):
 def test_dynamic_prompt_includes_scenario(monkeypatch):
     """The generated prompt should contain the scenario hint."""
     app_mod = _reload_app(monkeypatch)
-    prompt = app_mod._build_generation_prompt("phishing", "CEO fraud — urgent wire transfer")
+    prompt = app_mod._build_generation_prompt("phishing", "CEO fraud - urgent wire transfer")
     assert "CEO fraud" in prompt
     assert "SCENARIO DIRECTIVE" in prompt
 

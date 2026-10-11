@@ -1,4 +1,4 @@
-"""PhishGuard — AI-powered phishing awareness trainer.
+"""PhishGuard - AI-powered phishing awareness trainer.
 
 This module implements the Flask application, consensus engine, and
 background prefetch cache for the PhishGuard game.
@@ -21,8 +21,10 @@ import threading
 import time
 import uuid
 from typing import Any
+from urllib.parse import urlsplit
 
 from flask import Flask, Response, jsonify, render_template, request
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 def _load_dotenv() -> None:
@@ -36,7 +38,8 @@ def _load_dotenv() -> None:
                     if line and not line.startswith("#") and "=" in line:
                         k, v = line.split("=", 1)
                         k, v = k.strip(), v.strip().strip('"').strip("'")
-                        if k and k not in os.environ:
+                        curr = os.environ.get(k, "")
+                        if k and (not curr or "your_" in curr or curr.startswith("sk-or-v1-your")):
                             os.environ[k] = v
         except Exception:
             pass
@@ -79,12 +82,12 @@ OR_GENERATOR_MODELS: list[str] = [
     "google/gemma-4-26b-a4b-it:free",          # Fast, accurate JSON formatting, 26B
     "nvidia/nemotron-3-super-120b-a12b:free",  # Massive 120B parameter model
     "google/gemma-4-31b-it:free",              # Capable 31B instruction-tuned model
-    "openai/gpt-oss-20b:free",                 # Fast secondary generator
+    "nvidia/nemotron-3.5-lightning:free",      # Fast secondary generator
 ]
 
 
 # Fast model for direct generation if consensus fails
-OR_FALLBACK_MODEL = "openai/gpt-oss-20b:free"
+OR_FALLBACK_MODEL = "google/gemma-4-26b-a4b-it:free"
 
 # ─── Scenario Taxonomy ──────────────────────────────────────────────────────
 # Curated, real-world-inspired scenario archetypes to drive creative generation.
@@ -92,7 +95,7 @@ OR_FALLBACK_MODEL = "openai/gpt-oss-20b:free"
 
 PHISHING_SCENARIOS: list[str] = [
     # Social Engineering & Impersonation
-    "CEO fraud — urgent wire transfer request from a spoofed executive",
+    "CEO fraud - urgent wire transfer request from a spoofed executive",
     "IT helpdesk impersonation with a fake password reset portal",
     "HR benefits enrollment deadline with a credential-harvesting form",
     "Vendor invoice with subtly altered bank account details",
@@ -107,7 +110,7 @@ PHISHING_SCENARIOS: list[str] = [
     "Tax refund notification from a spoofed government agency",
     "Cloud storage sharing notification with a lookalike domain",
     "Multi-factor authentication verify-your-identity push prompt",
-    "Fake security alert — new device logged into your account",
+    "Fake security alert - new device logged into your account",
     # Platform-Specific
     "Microsoft Teams message notification with an external login link",
     "Slack workspace invitation from a spoofed colleague",
@@ -115,7 +118,7 @@ PHISHING_SCENARIOS: list[str] = [
     "PayPal dispute resolution requiring immediate login",
     "GitHub repository access notification with a malicious OAuth app",
     # Emotional Manipulation
-    "Prize notification — you have been selected lottery scam",
+    "Prize notification - you have been selected lottery scam",
     "Threatening legal action email demanding immediate payment",
     "Fake customer complaint threatening a public review unless refunded",
     "Subscription cancellation confirmation you did not initiate",
@@ -164,7 +167,7 @@ def _pick_scenario(desired_label: str) -> str:
     with _prefetch_lock:
         available = [s for s in pool if s not in _recent_scenarios]
     if not available:
-        # All scenarios used recently — reset and pick from full pool
+        # All scenarios used recently - reset and pick from full pool
         available = pool
     choice = random.choice(available)
     with _prefetch_lock:
@@ -174,15 +177,39 @@ def _pick_scenario(desired_label: str) -> str:
     return choice
 
 
+_STOP_WORDS = {
+    "a", "about", "above", "after", "again", "all", "an", "and", "any", "are",
+    "as", "at", "be", "because", "been", "before", "being", "below", "between",
+    "both", "but", "by", "can", "could", "did", "do", "does", "doing", "down",
+    "during", "each", "few", "for", "from", "further", "had", "has", "have",
+    "having", "he", "her", "here", "hers", "herself", "him", "himself", "his",
+    "how", "i", "if", "in", "into", "is", "it", "its", "itself", "just", "me",
+    "more", "most", "my", "myself", "no", "nor", "not", "now", "of", "off",
+    "on", "once", "only", "or", "other", "our", "ours", "ourselves", "out",
+    "over", "own", "same", "she", "should", "so", "some", "such", "than",
+    "that", "the", "their", "theirs", "them", "themselves", "then", "there",
+    "these", "they", "this", "those", "through", "to", "too", "under", "until",
+    "up", "very", "was", "we", "were", "what", "when", "where", "which", "while",
+    "who", "whom", "why", "will", "with", "would", "you", "your", "yours",
+    "yourself", "yourselves",
+}
+
+
+def _extract_keywords(text: str) -> set[str]:
+    """Extract lowercase keywords of 3+ letters, excluding common stop words."""
+    words = {w for w in re.findall(r"\b[a-z]{3,}\b", text.lower()) if w not in _STOP_WORDS}
+    return words or set(text.lower().split())
+
+
 def _is_too_similar(new_text: str, threshold: float = _SIMILARITY_THRESHOLD) -> bool:
     """Check if new_text shares too many keywords with any recently served text."""
-    new_words = set(new_text.lower().split())
+    new_words = _extract_keywords(new_text)
     if not new_words:
         return False
     with _prefetch_lock:
         recent = list(_recent_texts)
     for prev in recent:
-        prev_words = set(prev.lower().split())
+        prev_words = _extract_keywords(prev)
         if not prev_words:
             continue
         overlap = len(new_words & prev_words) / min(len(new_words), len(prev_words))
@@ -291,7 +318,7 @@ def _build_generation_prompt(desired_label: str, scenario_hint: str) -> str:
         "  department names, realistic ticket or reference numbers, and internal system names.",
         "- DO NOT use generic phishing cliches like 'Dear User' or 'click here immediately'.",
         "- DO NOT use 'example.com'. Invent realistic-looking but clearly fictional domains.",
-        "- Write as if you are a real person — include natural language quirks, partial sentences,",
+        "- Write as if you are a real person - include natural language quirks, partial sentences,",
         "  or casual tone variations that make the email feel human-authored.",
         "- Vary the emotional register: some emails should be casual, some formal,",
         "  some urgent but not panicked.",
@@ -373,6 +400,18 @@ def _is_auth_error(exc: BaseException) -> bool:
     return "401" in msg or "unauthorized" in msg
 
 
+_openrouter_rate_limit_until: float = 0.0
+
+
+def _mark_openrouter_rate_limited(cooldown_seconds: float = 60.0) -> None:
+    global _openrouter_rate_limit_until
+    _openrouter_rate_limit_until = time.time() + cooldown_seconds
+
+
+def _is_openrouter_cooling_down() -> bool:
+    return time.time() < _openrouter_rate_limit_until
+
+
 def _openrouter_generate(
     client: Any, desired_label: str, max_length: int,
     scenario_hint: str = "",
@@ -381,6 +420,10 @@ def _openrouter_generate(
 
     Returns (email_dict, None) on success, or (None, error_str).
     """
+    if _is_openrouter_cooling_down():
+        remaining = max(1, int(_openrouter_rate_limit_until - time.time()))
+        return None, f"OpenRouter cooling down after rate limit ({remaining}s remaining)."
+
     if scenario_hint:
         prompt = _build_generation_prompt(desired_label, scenario_hint)
     else:
@@ -421,6 +464,13 @@ def _openrouter_generate(
                 print("[Generator] FATAL: Auth failed. Check OPENROUTER_API_KEY.")
                 raise _OpenRouterAuthFailed(str(exc)) from exc
             if _is_rate_limit(exc):
+                err_text = str(exc).lower()
+                if "free-models-per-min" in err_text or "per-minute" in err_text:
+                    print(
+                        "[Generator] OpenRouter free-tier per-minute limit reached - cooling down."
+                    )
+                    _mark_openrouter_rate_limited(60.0)
+                    return None, "OpenRouter per-minute rate limit reached."
                 print(f"[Generator] {model_name} rate limited - trying next model.")
                 last_error = f"{model_name} rate limited."
                 continue
@@ -429,11 +479,23 @@ def _openrouter_generate(
             last_error = f"{model_name}: {_sanitize_log(exc)}"
             continue
 
+    if "rate limited" in str(last_error).lower():
+        _mark_openrouter_rate_limited(30.0)
+
     return None, last_error
 
 
-def _groq_classify(client: Any, email_text: str) -> tuple[str | None, int]:
-    """Ask Groq (Llama-3.3-70b-versatile) to classify and score an email.
+GROQ_VERIFIER_MODELS = [
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "qwen/qwen3.8-27b",
+]
+
+
+def _groq_classify(
+    client: Any, email_text: str, exclude_model: str = ""
+) -> tuple[str | None, int]:
+    """Ask Groq to classify and score an email using available models.
 
     Returns (label, quality_score) where label is 'phishing' | 'legitimate' | None
     and quality_score is 1-5 (0 if parsing fails).
@@ -457,39 +519,87 @@ def _groq_classify(client: Any, email_text: str) -> tuple[str | None, int]:
         f"Email:\n{email_text}"
     )
 
-    try:
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": classify_prompt}],
-            temperature=0.1,
-            max_tokens=50,
+    models_to_try = [m for m in GROQ_VERIFIER_MODELS if m != exclude_model]
+    if exclude_model and exclude_model in GROQ_VERIFIER_MODELS:
+        models_to_try.append(exclude_model)
+
+    for model_name in models_to_try:
+        try:
+            completion = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": classify_prompt}],
+                temperature=0.1,
+                max_tokens=600,
+            )
+            raw = (
+                (completion.choices[0].message.content or "").strip().lower()
+                if completion.choices
+                else ""
+            )
+            # If content is empty because reasoning consumed tokens, inspect reasoning trace
+            if not raw and completion.choices:
+                reasoning = getattr(completion.choices[0].message, "reasoning", "") or ""
+                raw = reasoning.strip().lower()
+
+            # Parse quality score from response like "phishing 4" or "legitimate 5"
+            score = 0
+            score_match = re.search(r'(\d)', raw)
+            if score_match:
+                parsed = int(score_match.group(1))
+                if 1 <= parsed <= 5:
+                    score = parsed
+
+            match = re.search(r"\b(phishing|legitimate)\b", raw)
+            if match:
+                label = match.group(1)
+                print(f"[Verifier] Groq ({model_name}) classified as {label} (quality={score}).")
+                return label, score
+
+            print(f"[Verifier] Groq ({model_name}) returned ambiguous response: {raw!r}")
+        except Exception as exc:
+            err_msg = _sanitize_log(exc)
+            print(f"[Verifier] Groq ({model_name}) error: {err_msg}")  # SEC-05
+
+    return None, 0
+
+
+def _groq_generate(
+    client: Any, desired_label: str, max_length: int, scenario_hint: str = ""
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Generate an email using Groq when OpenRouter models are busy or rate-limited."""
+    if not client:
+        return None, "Groq client not available."
+    if scenario_hint:
+        prompt = _build_generation_prompt(desired_label, scenario_hint)
+    else:
+        prompt = " ".join(
+            _FALLBACK_PROMPT_PARTS + [f"- The label must be exactly '{desired_label}'."]
         )
-        raw = (
-            (completion.choices[0].message.content or "").strip().lower()
-            if completion.choices
-            else ""
-        )
 
-        # Parse quality score from response like "phishing 4" or "legitimate 5"
-        score = 0
-        score_match = re.search(r'(\d)', raw)
-        if score_match:
-            parsed = int(score_match.group(1))
-            if 1 <= parsed <= 5:
-                score = parsed
+    for model_name in GROQ_VERIFIER_MODELS:
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.8,
+                max_tokens=800,
+            )
+            raw_text = response.choices[0].message.content if response.choices else ""
+            match = re.search(r"\{.*\}", raw_text, re.DOTALL)
+            if not match:
+                continue
+            email = json.loads(match.group(0))
+            text = _strip_html(email.get("text", "").strip())
+            label = email.get("label", "").strip().lower()
+            if text and label == desired_label and len(text) <= max_length:
+                print(f"[Generator] Success with Groq ({model_name})")
+                return {"text": text, "label": label, "_model": f"groq:{model_name}"}, None
+        except Exception as exc:
+            err_msg = _sanitize_log(exc)
+            print(f"[Generator] Groq ({model_name}) error: {err_msg}")
+            continue
 
-        if "phishing" in raw:
-            print(f"[Verifier] Groq classified as phishing (quality={score}).")
-            return "phishing", score
-        if "legitimate" in raw:
-            print(f"[Verifier] Groq classified as legitimate (quality={score}).")
-            return "legitimate", score
-
-        print(f"[Verifier] Groq returned ambiguous response: {raw!r}")
-        return None, 0
-    except Exception as exc:
-        print(f"[Verifier] Groq classification error: {_sanitize_log(exc)}")  # SEC-05
-        return None, 0
+    return None, "All Groq generation attempts failed."
 
 
 # ─── Consensus Engine ────────────────────────────────────────────────────────
@@ -539,7 +649,16 @@ def generate_ai_email(
             return None, "OpenRouter API key is invalid (401). Please check OPENROUTER_API_KEY."
 
         if email is None:
-            print(f"[Consensus] Round {round_num}: All generators failed — {gen_error}")
+            # Fall back to Groq if OpenRouter models are rate-limited or congested
+            print(
+                f"[Consensus] Round {round_num}: OpenRouter busy - trying Groq ({gen_error})."
+            )
+            email, _ = _groq_generate(
+                groq_client, desired_label, max_length, scenario_hint=scenario_hint
+            )
+
+        if email is None:
+            print(f"[Consensus] Round {round_num}: All generators failed - {gen_error}")
             last_error = gen_error
             if "rate limited" in str(gen_error).lower() or "quota" in str(gen_error).lower():
                 break
@@ -552,16 +671,19 @@ def generate_ai_email(
 
         # ── Step 1b: Similarity deduplication ────────────────────────────────
         if _is_too_similar(email_text):
-            print(f"[Consensus] Round {round_num}: Content too similar to recent — regenerating.")
+            print(f"[Consensus] Round {round_num}: Content too similar to recent - regenerating.")
             last_error = f"Round {round_num}: Duplicate content rejected."
             continue
 
         # ── Step 2: Verifier chain (classify + quality score) ────────────────
         time.sleep(0.3)
-        verifier_label, quality_score = _groq_classify(groq_client, email_text)
+        gen_groq_model = gen_model.split("groq:", 1)[1] if gen_model.startswith("groq:") else ""
+        verifier_label, quality_score = _groq_classify(
+            groq_client, email_text, exclude_model=gen_groq_model
+        )
 
         if verifier_label is None:
-            print(f"[Consensus] Round {round_num}: All verifiers failed — serving unverified.")
+            print(f"[Consensus] Round {round_num}: All verifiers failed - serving unverified.")
             email["_validated"]       = False
             email["_consensus_round"] = 0
             email["_quality_score"]   = 0
@@ -574,14 +696,14 @@ def generate_ai_email(
             if quality_score < _MIN_QUALITY_SCORE:
                 print(
                     f"[Consensus] Round {round_num}: Consensus on label but quality"
-                    f" too low ({quality_score}<{_MIN_QUALITY_SCORE}) — regenerating."
+                    f" too low ({quality_score}<{_MIN_QUALITY_SCORE}) - regenerating."
                 )
                 last_error = f"Round {round_num}: Quality score {quality_score} below threshold."
                 continue
 
             print(
                 f"[Consensus] Consensus reached on round {round_num}"
-                f" — label={gen_label!r}, quality={quality_score}"
+                f" - label={gen_label!r}, quality={quality_score}"
             )
             email["_validated"]       = True
             email["_consensus_round"] = round_num
@@ -604,6 +726,22 @@ def generate_ai_email(
         f"[Consensus] No consensus after {MAX_CONSENSUS_ROUNDS}"
         " rounds. Using fallback model directly."
     )
+    # Attempt Groq direct generation first to bypass OpenRouter free-tier congestion
+    if groq_client:
+        fb_email, _ = _groq_generate(groq_client, desired_label, max_length)
+        if fb_email:
+            print("[Fallback] Success with Groq fallback generator.")
+            _record_served_text(fb_email["text"])
+            return {
+                "text": fb_email["text"],
+                "label": fb_email["label"],
+                "_validated": False,
+                "_consensus_round": 0,
+                "_quality_score": 0,
+                "_scenario_type": "",
+                "_model": fb_email.get("_model", "groq-fallback"),
+            }, None
+
     prompt_parts = _FALLBACK_PROMPT_PARTS + [f"- The label must be exactly '{desired_label}'."]
     prompt = " ".join(prompt_parts)
 
@@ -678,19 +816,24 @@ def _check_csrf(req: Any) -> str | None:
     if not req.headers.get("X-Requested-With"):
         return "Missing required X-Requested-With header."
 
-    # Check Origin or Referer
     origin = req.headers.get("Origin") or ""
     referer = req.headers.get("Referer") or ""
-    host = req.host_url.rstrip("/")
+    host_parts = urlsplit(req.host_url)
 
-    if origin:
-        if not origin.startswith(host):
-            return "Origin mismatch."
-    elif referer:
-        if not referer.startswith(host):
-            return "Referer mismatch."
-    # If neither is present, the custom header check above is sufficient
-    # (form submissions always send Referer; direct fetches from same origin are fine)
+    target_url = origin or referer
+    if target_url:
+        target_parts = urlsplit(target_url)
+        # Verify exact host:port match
+        if target_parts.netloc.lower() != host_parts.netloc.lower():
+            return "Origin mismatch." if origin else "Referer mismatch."
+
+        # Verify scheme matches (allowing https when terminated by reverse proxy)
+        fwd_proto = req.headers.get("X-Forwarded-Proto", "").lower()
+        allowed_schemes = {host_parts.scheme.lower()}
+        if fwd_proto:
+            allowed_schemes.add(fwd_proto)
+        if target_parts.scheme and target_parts.scheme.lower() not in allowed_schemes:
+            return "Origin mismatch." if origin else "Referer mismatch."
 
     return None
 
@@ -699,6 +842,9 @@ def _check_csrf(req: Any) -> str | None:
 
 def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
+
+    # SEC-11: Trust reverse-proxy headers for accurate client IP and HTTPS detection
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # SEC-02: Set a proper secret key for session security
     app.secret_key = os.getenv(
@@ -745,7 +891,7 @@ def create_app() -> Flask:
         )
         return response
 
-    # MQ-03: Global error handler — never leak tracebacks to the client
+    # MQ-03: Global error handler - never leak tracebacks to the client
     @app.errorhandler(500)
     def internal_error(e: Exception) -> tuple[Response, int]:
         import traceback
@@ -776,8 +922,8 @@ def create_app() -> Flask:
             if email:
                 print("[Prefetch] Served from cache (instant response).")
             else:
-                # ── Step 2: Cache miss — generate synchronously ───────────────
-                print("[Prefetch] Cache miss — waiting for prefetch or generating synchronously.")
+                # ── Step 2: Cache miss - generate synchronously ───────────────
+                print("[Prefetch] Cache miss - waiting for prefetch or generating synchronously.")
 
                 # If a background prefetch is already running, wait for it instead of
                 # launching a concurrent request (which instantly triggers free-tier rate limits)
@@ -868,7 +1014,7 @@ app = create_app()
 if os.getenv("OPENROUTER_API_KEY") and os.getenv("GROQ_API_KEY"):
     _trigger_prefetch(DEFAULT_MAX_EMAIL_LENGTH)
 else:
-    print("[Startup] Skipping prefetch — API keys not set.")
+    print("[Startup] Skipping prefetch - API keys not set.")
 
 
 if __name__ == "__main__":
@@ -884,7 +1030,7 @@ if __name__ == "__main__":
             print(f"[Server] Starting Waitress on {host}:{port}")
             serve(app, host=host, port=port)
         except ImportError:
-            print("[Server] Waitress not installed — falling back to Flask dev server.")
+            print("[Server] Waitress not installed - falling back to Flask dev server.")
             print("[Server] WARNING: The Flask dev server is NOT suitable for production.")
             app.run(host=host, port=port, debug=debug, threaded=True)
     else:
