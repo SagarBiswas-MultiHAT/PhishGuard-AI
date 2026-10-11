@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -172,3 +172,70 @@ def test_get_email_rate_limited(tmp_path, monkeypatch):
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
         assert r2.status_code == 429
+
+
+def test_send_feedback_email_skipped_when_unconfigured(monkeypatch):
+    """Email delivery should gracefully skip when SMTP env vars are absent."""
+    import app
+    monkeypatch.delenv("SMTP_HOST", raising=False)
+    monkeypatch.delenv("SMTP_USER", raising=False)
+    monkeypatch.delenv("SMTP_PASS", raising=False)
+    assert app._send_feedback_email("Great app", "127.0.0.1", "TestAgent", 1000) is False
+
+
+def test_send_feedback_email_success_starttls(monkeypatch):
+    """Email delivery over STARTTLS port 587 should connect, authenticate, and send."""
+    import app
+    monkeypatch.setenv("SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("SMTP_PORT", "587")
+    monkeypatch.setenv("SMTP_USER", "bot@example.com")
+    monkeypatch.setenv("SMTP_PASS", "secret-app-password")
+    monkeypatch.setenv("FEEDBACK_RECIPIENT_EMAIL", "admin@example.com")
+
+    mock_server = MagicMock()
+    with patch("smtplib.SMTP", return_value=mock_server) as mock_smtp:
+        mock_server.__enter__.return_value = mock_server
+        result = app._send_feedback_email("Need more scenarios", "127.0.0.1", "TestAgent", 1000)
+
+        assert result is True
+        mock_smtp.assert_called_once_with("smtp.example.com", 587, timeout=10)
+        mock_server.starttls.assert_called_once()
+        mock_server.login.assert_called_once_with("bot@example.com", "secret-app-password")
+        assert mock_server.send_message.call_count == 1
+        msg = mock_server.send_message.call_args[0][0]
+        assert msg["Subject"] == "[PhishGuard] New User Feedback Received"
+        assert msg["To"] == "admin@example.com"
+        assert "Need more scenarios" in msg.get_payload(decode=True).decode("utf-8")
+
+
+def test_send_feedback_email_success_ssl(monkeypatch):
+    """Email delivery over SSL port 465 should connect via SMTP_SSL."""
+    import app
+    monkeypatch.setenv("SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("SMTP_PORT", "465")
+    monkeypatch.setenv("SMTP_USER", "bot@example.com")
+    monkeypatch.setenv("SMTP_PASS", "secret-app-password")
+    monkeypatch.setenv("FEEDBACK_RECIPIENT_EMAIL", "admin@example.com")
+
+    mock_server = MagicMock()
+    with patch("smtplib.SMTP_SSL", return_value=mock_server) as mock_smtp_ssl:
+        mock_server.__enter__.return_value = mock_server
+        result = app._send_feedback_email("SSL test feedback", "127.0.0.1", "TestAgent", 1000)
+
+        assert result is True
+        mock_smtp_ssl.assert_called_once_with("smtp.example.com", 465, timeout=10)
+        mock_server.login.assert_called_once_with("bot@example.com", "secret-app-password")
+        assert mock_server.send_message.call_count == 1
+
+
+def test_send_feedback_email_catches_and_sanitizes_error(monkeypatch):
+    """SMTP exceptions should be caught and logged safely without crashing."""
+    import app
+    monkeypatch.setenv("SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("SMTP_USER", "bot@example.com")
+    monkeypatch.setenv("SMTP_PASS", "secret-app-password")
+
+    with patch("smtplib.SMTP", side_effect=Exception("Connection refused")):
+        result = app._send_feedback_email("Fails safely", "127.0.0.1", "TestAgent", 1000)
+        assert result is False
+

@@ -43,6 +43,8 @@ Phishing is a type of online scam where criminals send fake emails to trick you 
 * **Real-time AI Generation:** Every email you see is uniquely generated on the spot by powerful AI. You'll never see the exact same scam twice!
 * **High-Stakes Timer:** You only get 10 seconds to make a call. This trains you to spot red flags quickly. Need a break? Just hit the "Pause Timer" button.
 * **Dual-AI Verification:** To make sure the game is always accurate, we use two separate AI models. One creates the email, and the second one independently verifies it. You'll see a "Dual-AI Verified" badge when they both agree!
+* **Zero-Downtime Rate-Limit Circuit Breaker:** OpenRouter free tier rate limits (HTTP 429) automatically trigger a 60-second cooldown with instant Groq failover, guaranteeing uninterrupted gameplay.
+* **Instant Feedback Email Notifications:** Player feedback is saved to local backup files and optionally dispatched directly to your personal email inbox via background SMTP delivery.
 * **Track Your Instincts:** Keep an eye on your live score and attempt tracker to see how your phishing radar improves over time.
 * **Beautiful 2050 Cyberpunk Design:** A sleek, futuristic interface featuring dynamic particle networks, smooth animations, and automatic Light/Dark mode support.
 
@@ -84,8 +86,16 @@ pip install -r requirements.txt
 Create a `.env` file (or copy `.env.example`) in the root directory:
 
 ```env
+# ── Core AI Keys (Free) ──────────────────────────────────────────────────────
 OPENROUTER_API_KEY=sk-or-v1-your-key-here
 GROQ_API_KEY=gsk_your-key-here
+
+# ── Optional: Direct Feedback Email Notifications (e.g. Gmail) ──────────────
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=your_email@gmail.com
+# SMTP_PASS=your_16_char_app_password
+# FEEDBACK_RECIPIENT_EMAIL=your_email@gmail.com
 ```
 
 Then launch the server:
@@ -94,7 +104,7 @@ Then launch the server:
 .\start.ps1
 ```
 
-*(Alternatively, you can set them inline in PowerShell without creating a `.env` file:)*
+*(Alternatively, you can set keys inline in PowerShell without creating a `.env` file:)*
 
 ```powershell
 $env:OPENROUTER_API_KEY = "sk-or-v1-your-key-here"
@@ -110,7 +120,7 @@ PhishGuard includes a complete unit and integration test suite:
 
 ```powershell
 pytest -q
-# 57 passed
+# 61 passed
 ```
 
 ---

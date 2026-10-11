@@ -17,9 +17,11 @@ import json
 import os
 import re
 import secrets
+import smtplib
 import threading
 import time
 import uuid
+from email.mime.text import MIMEText
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -293,6 +295,9 @@ def _sanitize_log(exc: BaseException) -> str:
     msg = re.sub(r"sk-or-v1-[A-Za-z0-9\-]+", "sk-or-v1-[REDACTED]", msg)
     msg = re.sub(r"gsk_[A-Za-z0-9]+", "gsk_[REDACTED]", msg)
     msg = re.sub(r"sk-[A-Za-z0-9]{20,}", "sk-[REDACTED]", msg)
+    smtp_pass = os.getenv("SMTP_PASS", "").strip()
+    if smtp_pass and len(smtp_pass) >= 6:
+        msg = msg.replace(smtp_pass, "[REDACTED]")
     return msg
 
 
@@ -838,6 +843,77 @@ def _check_csrf(req: Any) -> str | None:
     return None
 
 
+# ─── Feedback Email Notification ─────────────────────────────────────────────
+
+def _send_feedback_email(
+    feedback_text: str, client_ip: str, user_agent: str, created_at: int
+) -> bool:
+    """Send an email notification with submitted feedback via SMTP.
+
+    Returns True if sent, False if skipped or failed.
+    """
+    smtp_host = os.getenv("SMTP_HOST", "").strip()
+    smtp_user = os.getenv("SMTP_USER", "").strip()
+    smtp_pass = os.getenv("SMTP_PASS", "").strip()
+    recipient = os.getenv("FEEDBACK_RECIPIENT_EMAIL", "").strip() or smtp_user
+
+    # If SMTP is not configured, silently skip email delivery
+    if not smtp_host or not smtp_user or not smtp_pass or not recipient:
+        return False
+
+    try:
+        smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    except ValueError:
+        smtp_port = 587
+
+    time_str = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(created_at))
+    body = (
+        "You received new user feedback on PhishGuard!\n\n"
+        f"Date & Time: {time_str}\n"
+        f"Client IP:   {client_ip}\n"
+        f"User-Agent:  {user_agent}\n\n"
+        "--------------------------------------------------\n"
+        "Feedback Content:\n"
+        f"{feedback_text}\n"
+        "--------------------------------------------------\n"
+    )
+
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["Subject"] = "[PhishGuard] New User Feedback Received"
+    msg["From"] = smtp_user
+    msg["To"] = recipient
+
+    try:
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10) as server:
+                server.login(smtp_user, smtp_pass)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(smtp_user, smtp_pass)
+                server.send_message(msg)
+        print(f"[Feedback] Email notification sent to {recipient}")
+        return True
+    except Exception as exc:
+        print(f"[Feedback] Failed to send email notification: {_sanitize_log(exc)}")
+        return False
+
+
+def _dispatch_feedback_email(
+    feedback_text: str, client_ip: str, user_agent: str, created_at: int
+) -> None:
+    """Dispatch email notification asynchronously in a background worker thread."""
+    threading.Thread(
+        target=_send_feedback_email,
+        args=(feedback_text, client_ip, user_agent, created_at),
+        daemon=True,
+        name="phishguard-feedback-email",
+    ).start()
+
+
 # ─── Flask Application Factory ──────────────────────────────────────────────
 
 def create_app() -> Flask:
@@ -989,20 +1065,27 @@ def create_app() -> Flask:
             return json_error("Feedback is too long.", 400)
 
         os.makedirs(feedback_dir, exist_ok=True)
+        created_at = int(time.time())
+        user_agent = request.headers.get("User-Agent", "")[:USER_AGENT_MAX_LENGTH]
+
         # SEC-03: Use UUID to prevent filename collisions and predictability
         feedback_file_path = os.path.join(feedback_dir, f"feedback_{uuid.uuid4().hex}.json")
         with open(feedback_file_path, "w", encoding="utf-8") as handle:
             json.dump(
                 {
                     "feedback": feedback_text,
-                    "created_at": int(time.time()),
+                    "created_at": created_at,
                     # SEC-10: Truncate User-Agent to prevent disk-fill attacks
-                    "user_agent": request.headers.get("User-Agent", "")[:USER_AGENT_MAX_LENGTH],
+                    "user_agent": user_agent,
                 },
                 handle,
                 indent=2,
                 ensure_ascii=False,
             )
+
+        # Dispatch email notification in background if SMTP is configured
+        _dispatch_feedback_email(feedback_text, requester, user_agent, created_at)
+
         return jsonify({"message": "Feedback submitted successfully!"}), 200
 
     return app
