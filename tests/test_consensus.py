@@ -314,11 +314,12 @@ def test_missing_api_keys_returns_error(monkeypatch):
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     if "app" in sys.modules:
         del sys.modules["app"]
-    import app as app_mod
+    with patch("threading.Thread"), patch("os.path.isfile", return_value=False):
+        import app as app_mod
 
-    email, error = app_mod.generate_ai_email(800, "phishing")
-    assert email is None
-    assert "Missing" in error
+        email, error = app_mod.generate_ai_email(800, "phishing")
+        assert email is None
+        assert "Missing" in error
 
 
 # ─── _RateLimiter ─────────────────────────────────────────────────────────────

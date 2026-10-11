@@ -24,6 +24,7 @@ from typing import Any
 
 from flask import Flask, Response, jsonify, render_template, request
 
+
 def _load_dotenv() -> None:
     """Load environment variables from a local .env file if it exists."""
     env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
