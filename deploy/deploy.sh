@@ -14,7 +14,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 DOMAIN="phishguard.multihat.dev"
-REPO_URL="https://github.com/SagarBiswas-MultiHAT/Ai-Phishy-Playground.git"
+REPO_URL="https://github.com/SagarBiswas-MultiHAT/PhishGuard-AI.git"
 APP_DIR="/var/www/phishguard"
 USER="www-data"
 

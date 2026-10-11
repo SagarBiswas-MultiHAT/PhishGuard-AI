@@ -13,8 +13,8 @@ This folder contains all the files needed to quickly deploy PhishGuard onto an U
 
 3. Clone this repository onto your server (if you haven't already):
    ```bash
-   git clone https://github.com/SagarBiswas-MultiHAT/Ai-Phishy-Playground.git
-   cd Ai-Phishy-Playground/deploy
+   git clone https://github.com/SagarBiswas-MultiHAT/PhishGuard-AI.git
+   cd PhishGuard-AI/deploy
    ```
 
 4. Make the deployment script executable and run it:

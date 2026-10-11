@@ -47,7 +47,7 @@ Create the standard web directory, clone your code from GitHub, and move into th
 ```bash
 mkdir -p /var/www
 cd /var/www
-git clone https://github.com/SagarBiswas-MultiHAT/Ai-Phishy-Playground.git phishguard
+git clone https://github.com/SagarBiswas-MultiHAT/PhishGuard-AI.git phishguard
 cd phishguard
 ```
 
@@ -78,6 +78,13 @@ GROQ_API_KEY="your_groq_key_here"
 
 *Press `Ctrl+O`, `Enter`, and `Ctrl+X` to save and exit.*
 
+Give the service account ownership of the application files and feedback directory:
+```bash
+mkdir -p /var/www/phishguard/FeedBack
+chown -R www-data:www-data /var/www/phishguard
+chmod 600 /var/www/phishguard/.env
+```
+
 ---
 
 ## Phase 5: Systemd Background Service
@@ -95,8 +102,8 @@ Description=Waitress instance to serve PhishGuard
 After=network.target
 
 [Service]
-User=root
-Group=root
+User=www-data
+Group=www-data
 WorkingDirectory=/var/www/phishguard
 Environment="PATH=/var/www/phishguard/.venv/bin"
 EnvironmentFile=/var/www/phishguard/.env

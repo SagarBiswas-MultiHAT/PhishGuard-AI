@@ -5,7 +5,7 @@
 <!-- CI/CD & Code Quality -->
 <!-- Tech Stack -->
 <!-- Deployment & Licensing -->
-[![Build Status](https://img.shields.io/github/actions/workflow/status/SagarBiswas-MultiHAT/Ai-Phishy-Playground/ci.yml?branch=main&label=CI%20Build&style=flat-square)](https://github.com/SagarBiswas-MultiHAT/Ai-Phishy-Playground/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/SagarBiswas-MultiHAT/PhishGuard-AI/ci.yml?branch=main&label=CI%20Build&style=flat-square)](https://github.com/SagarBiswas-MultiHAT/PhishGuard-AI/actions)
 &nbsp;
 [![Python Version](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python)](https://www.python.org/)
 &nbsp;
