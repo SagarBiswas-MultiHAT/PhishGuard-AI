@@ -29,6 +29,32 @@ def test_homepage_loads(tmp_path, monkeypatch):
     assert "PhishGuard" in response.get_data(as_text=True)
 
 
+def test_homepage_social_meta_tags(tmp_path, monkeypatch):
+    client, _ = build_client(tmp_path, monkeypatch)
+    response = client.get("/")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+
+    img_url = "https://phishguard.multihat.dev/static/og-image.webp"
+
+    # Open Graph protocol compliance tags
+    assert '<link rel="canonical" href="https://phishguard.multihat.dev/" />' in html
+    assert '<meta property="og:type" content="website" />' in html
+    assert '<meta property="og:url" content="https://phishguard.multihat.dev/" />' in html
+    assert '<meta property="og:site_name" content="PhishGuard" />' in html
+    assert '<meta property="og:locale" content="en_US" />' in html
+    assert f'<meta property="og:image" content="{img_url}" />' in html
+    assert f'<meta property="og:image:secure_url" content="{img_url}" />' in html
+    assert '<meta property="og:image:type" content="image/webp" />' in html
+    assert '<meta property="og:image:width" content="1200" />' in html
+    assert '<meta property="og:image:height" content="630" />' in html
+
+    # Twitter card tags
+    assert '<meta name="twitter:card" content="summary_large_image" />' in html
+    assert '<meta name="twitter:url" content="https://phishguard.multihat.dev/" />' in html
+    assert f'<meta name="twitter:image" content="{img_url}" />' in html
+
+
 def test_get_email_returns_payload(tmp_path, monkeypatch):
     """Verify /get-email returns a valid payload.
 
