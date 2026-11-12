@@ -17,6 +17,8 @@
 &nbsp;
 [![Live Deployment](https://img.shields.io/website?url=https%3A%2F%2Fphishguard.multihat.dev&up_message=online&down_message=offline&style=flat-square&label=PhishGuard%20Live)](https://phishguard.multihat.dev)
 &nbsp;
+[![Sponsor SagarBiswas-MultiHAT on Polar.sh](https://img.shields.io/badge/Sponsor-Polar.sh-0062FF?style=flat-square&logo=githubsponsors&logoColor=white)](https://buy.polar.sh/polar_cl_I7DT5UQNUs1Qjb4VrFYOiRA2nkb3RVVUJCnjr3o5SGK)
+&nbsp;
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 &nbsp;
 
@@ -138,6 +140,16 @@ Instead of relying on a single AI, PhishGuard uses a **resilient hybrid Consensu
 5. **Disagreement & Quality Filtering** - Ambiguous emails or low-quality drafts (scores 1 or 2) are automatically discarded and regenerated.
 6. **Circuit Breaker & Groq Generator Fallback** - If OpenRouter free tier hits its 20 req/min rate limit, an automated 60-second circuit breaker seamlessly routes generation through Groq, guaranteeing uninterrupted gameplay.
 7. **Zero-Latency Prefetching** - While you analyze the current question, an asynchronous background worker prepares the next scenario in cache for instantaneous loading.
+
+---
+
+## 💖 Support MultiHAT Open-Source
+
+If you find this project useful in your workflow, development, or security research, consider supporting **SagarBiswas-MultiHAT** in its ongoing maintenance and future updates (supports both One-Time and Monthly backing):
+
+[![Support on Polar.sh](https://img.shields.io/badge/Support%20on-Polar.sh-0062FF?style=flat-square&logo=githubsponsors&logoColor=white)](https://buy.polar.sh/polar_cl_I7DT5UQNUs1Qjb4VrFYOiRA2nkb3RVVUJCnjr3o5SGK)
+[![Portfolio](https://img.shields.io/badge/Portfolio-sagarbiswas.multihat.dev-2563EB?style=flat-square&logo=todoist&logoColor=white)](https://sagarbiswas.multihat.dev/)
+[![Agency](https://img.shields.io/badge/Agency-multihat.dev-111827?style=flat-square&logo=vercel&logoColor=white)](https://multihat.dev)
 
 ---
 
